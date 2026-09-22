@@ -1,0 +1,22 @@
+# Build artifacts
+*.o
+*.elf
+*.bin
+
+# Generated disk image
+boot/*.img
+
+# Debug logs
+*.log
+
+# Temporary/debug files
+*.tmp
+
+# Editor files
+*.swp
+*~
+
+# OS files
+.DS_Store
+Thumbs.dbo
+
