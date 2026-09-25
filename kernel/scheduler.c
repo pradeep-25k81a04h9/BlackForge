@@ -43,6 +43,46 @@ int scheduler_has_ready_tasks(void)
 
     return 0;
 }
+/*
+ * Block the currently running task and
+ * select another READY task.
+ */
+task_t* scheduler_block_current(void)
+{
+    if (current_task == 0)
+        return 0;
+
+    /*
+     * The current task is no longer eligible
+     * for scheduling.
+     */
+    current_task->state = TASK_BLOCKED;
+
+    /*
+     * scheduler_select_next() will skip the
+     * blocked task and find the next READY task.
+     */
+    return scheduler_select_next();
+}
+
+
+/*
+ * Wake a blocked task.
+ */
+int scheduler_wake_task(uint32_t pid)
+{
+    task_t* task = task_get(pid);
+
+    if (task == 0)
+        return 0;
+
+    if (task->state != TASK_BLOCKED)
+        return 0;
+
+    task->state = TASK_READY;
+
+    return 1;
+}
 
 /*
  * Select the next READY task using

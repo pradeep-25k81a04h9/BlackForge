@@ -62,6 +62,7 @@ terminal_write("  heaptest   - Test kernel heap\n");
 terminal_write("  pagemaptest - Test dynamic virtual mapping\n");
 terminal_write("  pagingtest - Test virtual memory paging\n");
 terminal_write("  lifecycletest - Test task lifecycle and cleanup\n");
+terminal_write("  stresssched  - Stress test preemptive scheduler\n");
     terminal_write("\nAvailable commands:\n");
     terminal_write("  help     - Show this help\n");
     terminal_write("  clear    - Clear the screen\n");
@@ -473,6 +474,24 @@ else if (string_equals(input_buffer, "lifecycletest"))
     else
     {
         terminal_write("Lifecycle test: FAIL\n");
+    }
+
+    terminal_write("\n");
+}
+else if (string_equals(input_buffer, "stresssched"))
+{
+    terminal_write("\nBlackForge Scheduler Stress Test\n");
+    terminal_write("--------------------------------\n");
+    terminal_write("Creating Tasks A, B and C...\n");
+    terminal_write("Starting preemptive scheduler...\n\n");
+
+    if (task_scheduler_stress_test())
+    {
+        terminal_write("\nScheduler stress test: PASS\n");
+    }
+    else
+    {
+        terminal_write("\nScheduler stress test: FAIL\n");
     }
 
     terminal_write("\n");

@@ -20,3 +20,6 @@ boot/*.img
 .DS_Store
 Thumbs.dbo
 
+#Backups
+boot_backup/
+kernel_backup/

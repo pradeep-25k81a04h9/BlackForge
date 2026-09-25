@@ -1136,6 +1136,183 @@ if (after_count != before_count)
 
     return 1;
 }
+/* ============================================================
+ * SCHEDULER STRESS TEST
+ * ============================================================ */
+#define STRESS_WORK 100000
+
+static volatile uint32_t stress_a_count = 0;
+static volatile uint32_t stress_b_count = 0;
+static volatile uint32_t stress_c_count = 0;
+
+
+static void scheduler_stress_task_a(void)
+{
+    terminal_write(" [A START] ");
+
+    while (stress_a_count < 100000)
+    {
+        stress_a_count++;
+    }
+
+    terminal_write(" [A DONE] ");
+
+    task_finish();
+
+    while (1)
+    {
+        __asm__ volatile ("hlt");
+    }
+}
+
+static void scheduler_stress_task_b(void)
+{
+    terminal_write(" [B START] ");
+
+    while (stress_b_count < 100000)
+    {
+        stress_b_count++;
+    }
+
+    terminal_write(" [B DONE] ");
+
+    task_finish();
+
+    while (1)
+    {
+        __asm__ volatile ("hlt");
+    }
+}
+
+static void scheduler_stress_task_c(void)
+{
+    terminal_write(" [C START] ");
+
+    while (stress_c_count < 100000)
+    {
+        stress_c_count++;
+    }
+
+    terminal_write(" [C DONE] ");
+
+    task_finish();
+
+    while (1)
+    {
+        __asm__ volatile ("hlt");
+    }
+}
+int task_scheduler_stress_test(void)
+{
+    stress_a_count = 0;
+    stress_b_count = 0;
+    stress_c_count = 0;
+
+    uint32_t before_count =
+        task_get_count();
+
+    int pid_a =
+        task_create(scheduler_stress_task_a);
+
+    if (pid_a <= 0)
+        return 0;
+
+    int pid_b =
+        task_create(scheduler_stress_task_b);
+
+    if (pid_b <= 0)
+    {
+        task_destroy((uint32_t)pid_a);
+        return 0;
+    }
+
+    int pid_c =
+        task_create(scheduler_stress_task_c);
+
+    if (pid_c <= 0)
+    {
+        task_destroy((uint32_t)pid_a);
+        task_destroy((uint32_t)pid_b);
+        return 0;
+    }
+
+    /*
+     * Select the first task.
+     */
+    __asm__ volatile ("cli");
+
+    task_t* first =
+        scheduler_select_next();
+
+    if (first == 0)
+    {
+        __asm__ volatile ("sti");
+
+        scheduler_clear_current();
+
+        task_destroy((uint32_t)pid_a);
+        task_destroy((uint32_t)pid_b);
+        task_destroy((uint32_t)pid_c);
+
+        return 0;
+    }
+
+    /*
+     * Start the first task.
+     *
+     * From here the PIT must perform
+     * the actual preemptive switching.
+     */
+    task_start_preemptive(first);
+
+    /*
+     * Execution returns here after the
+     * idle/reaper path restores the kernel.
+     */
+    __asm__ volatile ("sti");
+
+    /*
+     * Every task must have received CPU time.
+     */
+    if (stress_a_count == 0 ||
+        stress_b_count == 0 ||
+        stress_c_count == 0)
+    {
+        return 0;
+    }
+
+    /*
+     * Each task should have completed
+     * its entire workload.
+     */
+    if (stress_a_count != STRESS_WORK ||
+        stress_b_count != STRESS_WORK ||
+        stress_c_count != STRESS_WORK)
+    {
+        return 0;
+    }
+
+    /*
+     * The idle/reaper path should have
+     * removed all three tasks.
+     */
+    if (task_get_count() != before_count)
+        return 0;
+
+    /*
+     * PIDs must no longer exist.
+     */
+    if (task_get((uint32_t)pid_a) != 0)
+        return 0;
+
+    if (task_get((uint32_t)pid_b) != 0)
+        return 0;
+
+    if (task_get((uint32_t)pid_c) != 0)
+        return 0;
+
+    return 1;
+}
 uint32_t task_get_idle_irq_stack(void)
 {
     return kernel_idle_irq_stack_pointer;
