@@ -77,6 +77,7 @@ int task_preempt_test(void);
 int task_lifecycle_test(void);
 int task_scheduler_stress_test(void);
 
+void task_block(void);
 void task_yield(void);
 void task_start(task_t* task);
 void task_start_preemptive(task_t* task);
