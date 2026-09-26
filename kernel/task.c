@@ -380,6 +380,44 @@ task_t* task_get_at(uint32_t index)
 /*
  * Cooperative yield.
  */
+/*
+ * Block the currently running task.
+ *
+ * The task becomes BLOCKED and the scheduler
+ * selects another READY task.
+ */
+void task_block(void)
+{
+    task_t* current =
+        scheduler_get_current();
+
+    if (current == 0)
+        return;
+
+    task_t* next =
+        scheduler_block_current();
+
+    /*
+     * If there is no other READY task,
+     * we cannot safely switch away yet.
+     *
+     * Restore the current task to RUNNING.
+     */
+    if (next == 0)
+    {
+        current->state = TASK_RUNNING;
+        return;
+    }
+
+    /*
+     * Switch from the blocked task to
+     * the next runnable task.
+     */
+    context_switch(
+        &current->context.esp,
+        next->context.esp
+    );
+}
 void task_yield(void)
 {
     task_t* current =
