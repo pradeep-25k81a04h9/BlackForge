@@ -17,6 +17,13 @@ gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
 echo "[3/10] Building shell..."
 gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
     -c kernel/shell.c -o kernel/shell.o
+echo "[H1] Building Hindsight event system..."
+gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
+    -c hindsight/event.c -o hindsight/event.o
+
+echo "[H2] Building Hindsight history..."
+gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
+    -c hindsight/history.c -o hindsight/history.o
 
 echo "[4/10] Building kernel..."
 gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
@@ -74,7 +81,9 @@ ld -m elf_i386 -T kernel/linker.ld \
     kernel/context.o \
     kernel/task.o \
     kernel/interrupts_c.o \
-    kernel/interrupts.o
+    kernel/interrupts.o \
+    hindsight/event.o \
+    hindsight/history.o
 
 objcopy -O binary kernel/kernel.elf kernel/kernel.bin
 

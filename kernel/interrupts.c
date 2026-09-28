@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include "timer.h"
+#include "../hindsight/event.h"
 
 struct idt_entry
 {
@@ -21,6 +22,26 @@ static struct idt_ptr idtp;
 
 extern void irq0_stub(void);
 extern void irq1_stub(void);
+extern void page_fault_stub(void);
+
+void page_fault_handler(uint32_t error_code)
+{
+    uint32_t fault_address;
+
+    __asm__ volatile (
+        "mov %%cr2, %0"
+        : "=r"(fault_address)
+    );
+
+    hindsight_record_event(
+        HINDSIGHT_PAGE_FAULT,
+        HINDSIGHT_ERROR,
+        -1,
+        fault_address,
+        error_code,
+        "Page fault"
+    );
+}
 
 static void outb(uint16_t port, uint8_t value)
 {
@@ -123,6 +144,13 @@ void interrupts_init(void)
         0x20,
         (uint32_t)irq0_stub
     );
+    /*
+ * CPU Page Fault -> interrupt vector 14.
+ */
+idt_set_gate(
+    0x0E,
+    (uint32_t)page_fault_stub
+);
 
     /*
      * IRQ1 -> interrupt vector 0x21.

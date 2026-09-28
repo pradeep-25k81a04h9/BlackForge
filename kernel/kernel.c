@@ -1,3 +1,4 @@
+#include "../hindsight/history.h"
 #include "terminal.h"
 #include "memory.h"
 #include "paging.h"
@@ -36,7 +37,9 @@ void kernel_main(void)
     heap_init();
     task_init();
     scheduler_init();
-    /*
+  
+hindsight_history_init();
+  /*
  * All core kernel subsystems are now initialized.
  * Hardware interrupts can safely begin.
  */
