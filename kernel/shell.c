@@ -314,6 +314,63 @@ hindsight_record_event(
 );
     terminal_write("Hindsight event recorded successfully.\n");
 }
+static void shell_hindsight_wrap_test(void)
+{
+    unsigned int i;
+    unsigned int count;
+
+    terminal_write("\nHindsight History Wrap Test\n");
+    terminal_write("---------------------------\n");
+
+    for (i = 0; i < 140; i++)
+    {
+        hindsight_record_event(
+            HINDSIGHT_KERNEL_ERROR,
+            HINDSIGHT_INFO,
+            -1,
+            i,
+            i,
+            "Wrap test event"
+        );
+    }
+
+    count = hindsight_history_count();
+
+    terminal_write("Events recorded : 140\n");
+    terminal_write("History count   : ");
+
+if (count == 128)
+{
+    const HindsightEvent *oldest =
+        hindsight_history_get(0);
+
+    const HindsightEvent *newest =
+        hindsight_history_get(127);
+
+    if (oldest != 0 &&
+        newest != 0 &&
+        oldest->value == 12 &&
+        newest->value == 139)
+    {
+        terminal_write("Oldest event : 12\n");
+        terminal_write("Newest event : 139\n");
+        terminal_write("\nHINDSIGHT WRAP TEST: PASS\n\n");
+    }
+    else
+    {
+        terminal_write("Event order   : FAIL\n");
+        terminal_write("\nHINDSIGHT WRAP TEST: FAIL\n\n");
+    }
+}
+else
+{
+    terminal_write("\nHINDSIGHT WRAP TEST: FAIL\n\n");
+}
+    if (count == 128)
+        terminal_write("\nHINDSIGHT WRAP TEST: PASS\n\n");
+    else
+        terminal_write("\nHINDSIGHT WRAP TEST: FAIL\n\n");
+}
 static void shell_hindsight_history(void)
 {
     unsigned int count;
@@ -558,6 +615,10 @@ else if (string_equals(input_buffer, "hindsighttest"))
 else if (string_equals(input_buffer, "hindsightevent"))
 {
     shell_hindsight_event_test();
+}
+else if (string_equals(input_buffer, "hindsightwraptest"))
+{
+    shell_hindsight_wrap_test();
 }
 else if (string_equals(input_buffer, "hindsight"))
 {
