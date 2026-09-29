@@ -2,6 +2,7 @@
 #include "paging.h"
 #include "frame.h"
 #include "terminal.h"
+#include "../hindsight/event.h"
 
 #define HEAP_PAGE_SIZE 4096
 
@@ -505,12 +506,24 @@ void* kmalloc(uint32_t size)
             required_size
         );
 
-        block->used = 1;
+block->used = 1;
 
-        return (void*)(
-            (uint8_t*)block +
-            sizeof(struct heap_block)
-        );
+void *address =
+    (void*)(
+        (uint8_t*)block +
+        sizeof(struct heap_block)
+    );
+
+hindsight_record_event(
+    HINDSIGHT_MEMORY_ALLOC,
+    HINDSIGHT_INFO,
+    -1,
+    (unsigned long)address,
+    size,
+    "Heap allocation"
+);
+
+return address;
     }
 
 
@@ -610,12 +623,24 @@ void* kmalloc(uint32_t size)
     block->size = size;
     block->used = 1;
 
-    used_pages += page_count;
+used_pages += page_count;
 
-    return (void*)(
+void *address =
+    (void*)(
         (uint8_t*)block +
         sizeof(struct heap_block)
     );
+
+hindsight_record_event(
+    HINDSIGHT_MEMORY_ALLOC,
+    HINDSIGHT_INFO,
+    -1,
+    (unsigned long)address,
+    size,
+    "Heap allocation"
+);
+
+return address;
 }
 
 
@@ -706,8 +731,16 @@ void kfree(void* address)
                 return;
             }
 
-            block->used = 0;
+hindsight_record_event(
+    HINDSIGHT_MEMORY_FREE,
+    HINDSIGHT_INFO,
+    -1,
+    (unsigned long)virtual_address,
+    size,
+    "Heap free"
+);
 
+block->used = 0;
             for (uint32_t i = 0;
                  i < page_count;
                  i++)
@@ -757,13 +790,23 @@ void kfree(void* address)
             return;
         }
 
-        if (block->used &&
-            block->size <= SMALL_ALLOCATION_LIMIT)
-        {
-            block->used = 0;
+if (block->used &&
+    block->size <= SMALL_ALLOCATION_LIMIT)
+{
+    uint32_t size = block->size;
 
-            merge_free_blocks(page);
+    hindsight_record_event(
+        HINDSIGHT_MEMORY_FREE,
+        HINDSIGHT_INFO,
+        -1,
+        (unsigned long)virtual_address,
+        size,
+        "Heap free"
+    );
 
+    block->used = 0;
+
+    merge_free_blocks(page);
             /*
              * If this page is completely free,
              * return its physical frame.

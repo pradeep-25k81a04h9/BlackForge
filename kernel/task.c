@@ -1,4 +1,5 @@
 #include "task.h"
+#include "../hindsight/event.h"
 #include "heap.h"
 #include "scheduler.h"
 #include "context.h"
@@ -310,10 +311,19 @@ task->is_idle = 0;
     task->context.ecx = 0;
     task->context.eax = 0;
 
-    task_table[slot] = task;
-    task_count++;
+task_table[slot] = task;
+task_count++;
 
-    return (int)task->pid;
+hindsight_record_event(
+    HINDSIGHT_PROCESS_START,
+    HINDSIGHT_INFO,
+    (int)task->pid,
+    0,
+    0,
+    "Task created"
+);
+
+return (int)task->pid;
 }
 
 int task_destroy(uint32_t pid)
@@ -491,8 +501,17 @@ void task_finish(void)
      * the next timer interrupt, so its stack is NOT
      * freed here.
      */
-    current->finished = 1;
-    current->state = TASK_TERMINATED;
+current->finished = 1;
+current->state = TASK_TERMINATED;
+
+hindsight_record_event(
+    HINDSIGHT_PROCESS_EXIT,
+    HINDSIGHT_INFO,
+    (int)current->pid,
+    0,
+    0,
+    "Task finished"
+);
 }
 void task_exit(void)
 {
