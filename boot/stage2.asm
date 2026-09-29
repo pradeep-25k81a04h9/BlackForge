@@ -84,67 +84,163 @@ e820_done:
 
 
     ; ==========================================
-    ; Load kernel using BIOS EDD / LBA
+    ; Load kernel from floppy using CHS
+    ;
+    ; 1.44 MB floppy:
+    ;
+    ; 18 sectors per track
+    ; 2 heads
+    ; 36 sectors per cylinder
     ;
     ; Disk layout:
     ;
-    ; Sector 1       Bootloader
-    ; Sector 2-4     Stage 2
-    ; Sector 5+      Kernel
+    ; LBA 0       Bootloader
+    ; LBA 1-3     Stage 2
+    ; LBA 4+      Kernel
     ;
-    ; LBA is zero-based:
-    ; Bootloader = LBA 0
-    ; Stage 2    = LBA 1-3
-    ; Kernel     = LBA 4
+    ; Kernel destination:
+    ; physical 0xA000
     ;
-    ; Kernel destination = physical 0xA000
+    ; One sector per BIOS read.
     ; ==========================================
 
     mov si, kernel_message
     call print_string
 
-    ; Check BIOS Extended Disk Drive support
-    mov ah, 0x41
-    mov bx, 0x55AA
-    mov dl, [boot_drive]
-
-    int 0x13
-
-    jc kernel_load_failed
-
-    cmp bx, 0xAA55
-    jne kernel_load_failed
-
-    test cx, 1
-    jz kernel_load_failed
-
 
     ; ==========================================
-    ; Prepare Disk Address Packet
+    ; Initialize loading state
     ; ==========================================
 
-    mov word [disk_packet + 2], KERNEL_SECTORS
-
-    mov word [disk_packet + 4], 0xA000
-    mov word [disk_packet + 6], 0x0000
+    mov word [kernel_remaining], KERNEL_SECTORS
 
     ; Kernel starts at LBA 4
-    mov dword [disk_packet + 8], 4
-    mov dword [disk_packet + 12], 0
+    mov word [kernel_lba], 4
+
+    ; Destination:
+    ; 0A00:0000 = physical 0xA000
+
+    mov ax, 0x0A00
+    mov es, ax
+
+    xor bx, bx
+
+
+kernel_load_loop:
+
+    ; ==========================================
+    ; Check if complete
+    ; ==========================================
+
+    cmp word [kernel_remaining], 0
+    je kernel_load_complete
 
 
     ; ==========================================
-    ; Read kernel
+    ; Convert current LBA to CHS
+    ;
+    ; sectors per track = 18
+    ; heads = 2
+    ;
+    ; cylinder = LBA / 36
+    ; remainder = LBA % 36
+    ; head = remainder / 18
+    ; sector = remainder % 18 + 1
     ; ==========================================
 
-    mov si, disk_packet
+    mov ax, [kernel_lba]
+
+    xor dx, dx
+
+    mov si, 36
+
+    div si
+
+    ; AX = cylinder
+    ; DX = remainder
+
+    mov [chs_cylinder], ax
+
+    mov ax, dx
+
+    xor dx, dx
+
+    mov si, 18
+
+    div si
+
+    ; AX = head
+    ; DX = sector - 1
+
+    mov [chs_head], al
+
+    inc dl
+
+    mov [chs_sector], dl
+
+
+    ; ==========================================
+    ; BIOS CHS read
+    ;
+    ; AH = 02
+    ; AL = 01 sector
+    ; CH = cylinder low 8 bits
+    ; CL = sector + cylinder high 2 bits
+    ; DH = head
+    ; DL = boot drive
+    ; ES:BX = destination
+    ; ==========================================
+
+    mov ax, [chs_cylinder]
+
+    mov ch, al
+
+    mov cl, [chs_sector]
+
+    ; Cylinder bits 8-9 go into CL bits 6-7
+
+    mov al, ah
+
+    and al, 0x03
+
+    shl al, 6
+
+    or cl, al
+
+    mov dh, [chs_head]
+
     mov dl, [boot_drive]
-    mov ah, 0x42
+
+    mov ah, 0x02
+
+    mov al, 0x01
 
     int 0x13
 
     jc kernel_load_failed
 
+
+    ; ==========================================
+    ; One sector loaded
+    ; ==========================================
+
+    inc word [kernel_lba]
+
+    dec word [kernel_remaining]
+
+
+    ; ==========================================
+    ; Advance destination by 512 bytes
+    ;
+    ; BX += 0x200
+    ; ==========================================
+
+    add bx, 0x0200
+
+    jmp kernel_load_loop
+
+
+kernel_load_complete:
 
     mov si, kernel_ok_message
     call print_string
@@ -177,6 +273,7 @@ kernel_error_loop:
 
     cli
     hlt
+
     jmp kernel_error_loop
 
 
@@ -189,6 +286,7 @@ memory_error_loop:
 
     cli
     hlt
+
     jmp memory_error_loop
 
 
@@ -231,13 +329,9 @@ print_protected:
 
     jmp print_protected
 
-
 run_kernel:
-
     mov eax, 0xA000
-
-    call eax
-
+    jmp eax
 
 kernel_halt:
 
@@ -367,33 +461,20 @@ boot_drive:
 memory_entries:
     dw 0
 
+kernel_remaining:
+    dw 0
 
-; ==========================================
-; BIOS Extended Disk Address Packet
-; ==========================================
-;
-; Offset 0: packet size
-; Offset 1: reserved
-; Offset 2: number of sectors
-; Offset 4: buffer offset
-; Offset 6: buffer segment
-; Offset 8: starting LBA low
-; Offset 12: starting LBA high
-;
-; ==========================================
+kernel_lba:
+    dw 0
 
-disk_packet:
+chs_cylinder:
+    dw 0
 
-    db 0x10
-    db 0x00
+chs_head:
+    db 0
 
-    dw KERNEL_SECTORS
-
-    dw 0xA000
-    dw 0x0000
-
-    dd 0x00000004
-    dd 0x00000000
+chs_sector:
+    db 0
 
 
 ; ==========================================
