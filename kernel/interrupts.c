@@ -2,6 +2,7 @@
 #include "timer.h"
 #include "terminal.h"
 #include "../hindsight/event.h"
+#include "../hindsight/incident.h"
 
 struct idt_entry
 {
@@ -50,16 +51,25 @@ void page_fault_handler(uint32_t error_code)
         "Page fault"
     );
 
-    if (page_fault_test_mode)
-    {
-        terminal_write("\nHINDSIGHT: PAGE FAULT CAPTURED\n");
-        terminal_write("BlackForge halted safely.\n");
+if (page_fault_test_mode)
+{
+    HindsightIncident incident;
 
-        while (1)
-        {
-            __asm__ volatile ("cli; hlt");
-        }
+    terminal_write("\nHINDSIGHT: PAGE FAULT CAPTURED\n");
+
+    if (hindsight_incident_find_latest(&incident))
+    {
+        hindsight_incident_print(&incident);
+        hindsight_incident_print_context(&incident, 5);
     }
+
+    terminal_write("BlackForge halted safely.\n");
+
+    while (1)
+    {
+        __asm__ volatile ("cli; hlt");
+    }
+}
 }
 
 static void outb(uint16_t port, uint8_t value)
