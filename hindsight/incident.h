@@ -16,5 +16,9 @@ int hindsight_incident_find_latest(HindsightIncident *incident);
 
 void hindsight_incident_print(const HindsightIncident *incident);
 
+void hindsight_incident_print_context(
+    const HindsightIncident *incident,
+    unsigned int before
+);
 #endif
 

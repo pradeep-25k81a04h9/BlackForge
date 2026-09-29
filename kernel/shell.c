@@ -567,14 +567,15 @@ else if (string_equals(input_buffer, "incident"))
 {
     HindsightIncident incident;
 
-    if (hindsight_incident_find_latest(&incident))
-    {
-        hindsight_incident_print(&incident);
-    }
-    else
-    {
-        hindsight_incident_print(&incident);
-    }
+if (hindsight_incident_find_latest(&incident))
+{
+    hindsight_incident_print(&incident);
+    hindsight_incident_print_context(&incident, 5);
+}
+else
+{
+    hindsight_incident_print(&incident);
+}
 }
 else if (string_equals(input_buffer, "hindsightevent"))
 {

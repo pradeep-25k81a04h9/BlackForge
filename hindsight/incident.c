@@ -129,3 +129,43 @@ terminal_write("\n");
     terminal_write(incident->event.description);
     terminal_write("\n\n");
 }
+void hindsight_incident_print_context(
+    const HindsightIncident *incident,
+    unsigned int before
+)
+{
+    unsigned int start;
+    unsigned int i;
+    const HindsightEvent *event;
+
+    if (!incident || !incident->found)
+        return;
+
+    if (incident->event_index > before)
+        start = incident->event_index - before;
+    else
+        start = 0;
+
+    terminal_write("\nHINDSIGHT CONTEXT\n");
+    terminal_write("-----------------\n");
+
+    for (i = start;
+         i <= incident->event_index;
+         i++)
+    {
+        event = hindsight_history_get(i);
+
+        if (!event)
+            continue;
+
+        terminal_write("[");
+        print_unsigned(event->timestamp);
+        terminal_write("] ");
+
+        terminal_write(event->description);
+
+        terminal_write("\n");
+    }
+
+    terminal_write("\n");
+}
