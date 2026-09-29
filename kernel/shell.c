@@ -9,6 +9,7 @@
 #include "scheduler.h"
 #include "../hindsight/history.h"
 #include "../hindsight/event.h"
+#include "../hindsight/incident.h"
 
 extern void page_fault_test_enable(void);
 
@@ -70,6 +71,7 @@ terminal_write("  lifecycletest - Test task lifecycle and cleanup\n");
 terminal_write("  stresssched  - Stress test preemptive scheduler\n");
 terminal_write("  hindsighttest - Test Hindsight page fault capture\n");
 terminal_write("  hindsightevent - Create a Hindsight test event\n");
+terminal_write("  incident - Analyze the latest Hindsight incident\n");
     terminal_write("\nAvailable commands:\n");
     terminal_write("  help     - Show this help\n");
     terminal_write("  clear    - Clear the screen\n");
@@ -302,15 +304,14 @@ static void shell_hindsight_event_test(void)
 {
     terminal_write("\nCreating Hindsight test event...\n");
 
-    hindsight_record_event(
-        HINDSIGHT_KERNEL_ERROR,
-        HINDSIGHT_WARNING,
-        -1,
-        0xDEADBEEF,
-        0xBF2026AA,
-        "Hindsight test event"
-    );
-
+hindsight_record_event(
+    HINDSIGHT_KERNEL_ERROR,
+    HINDSIGHT_ERROR,
+    -1,
+    0xDEADBEEF,
+    0,
+    "Hindsight test event"
+);
     terminal_write("Hindsight event recorded successfully.\n");
 }
 static void shell_hindsight_history(void)
@@ -562,6 +563,19 @@ else if (string_equals(input_buffer, "hindsight"))
 {
     shell_hindsight_history();
 }
+else if (string_equals(input_buffer, "incident"))
+{
+    HindsightIncident incident;
+
+    if (hindsight_incident_find_latest(&incident))
+    {
+        hindsight_incident_print(&incident);
+    }
+    else
+    {
+        hindsight_incident_print(&incident);
+    }
+}
 else if (string_equals(input_buffer, "hindsightevent"))
 {
     shell_hindsight_event_test();
@@ -584,7 +598,7 @@ else if (string_equals(input_buffer, "hindsight"))
     }
 else if (string_equals(input_buffer, "schedtest"))
 {
-    terminal_write("\nBlackForge Scheduler Test\n");
+terminal_write("\nBlackForge Scheduler Test\n");
     terminal_write("-------------------------\n");
 
     if (scheduler_test())

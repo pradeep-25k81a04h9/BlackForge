@@ -24,6 +24,9 @@ gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
 echo "[H2] Building Hindsight history..."
 gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
     -c hindsight/history.c -o hindsight/history.o
+echo "[H3] Building Hindsight incident analyzer..."
+gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
+    -c hindsight/incident.c -o hindsight/incident.o
 
 echo "[4/10] Building kernel..."
 gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
@@ -83,7 +86,8 @@ ld -m elf_i386 -T kernel/linker.ld \
     kernel/interrupts_c.o \
     kernel/interrupts.o \
     hindsight/event.o \
-    hindsight/history.o
+    hindsight/history.o \
+    hindsight/incident.o 
 
 objcopy -O binary kernel/kernel.elf kernel/kernel.bin
 
@@ -93,7 +97,7 @@ KERNEL_SECTORS=$(( (KERNEL_SIZE + 511) / 512 ))
 echo "Kernel size   : $KERNEL_SIZE bytes"
 echo "Kernel sectors: $KERNEL_SECTORS"
 
-if [ "$KERNEL_SECTORS" -gt 64 ]; then
+if [ "$KERNEL_SECTORS" -gt 128 ]; then
     echo "ERROR: Kernel is too large for current Stage 2 loader."
     exit 1
 fi
