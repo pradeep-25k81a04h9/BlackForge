@@ -162,10 +162,49 @@ void hindsight_incident_print_context(
         print_unsigned(event->timestamp);
         terminal_write("] ");
 
-        terminal_write(event->description);
+        switch (event->type)
+        {
+            case HINDSIGHT_PROCESS_START:
+                terminal_write("PROCESS_START");
+                break;
 
+            case HINDSIGHT_PROCESS_EXIT:
+                terminal_write("PROCESS_EXIT");
+                break;
+
+            case HINDSIGHT_MEMORY_ALLOC:
+                terminal_write("MEMORY_ALLOC");
+                break;
+
+            case HINDSIGHT_MEMORY_FREE:
+                terminal_write("MEMORY_FREE");
+                break;
+
+            case HINDSIGHT_PAGE_FAULT:
+                terminal_write("PAGE_FAULT");
+                break;
+
+            case HINDSIGHT_INTERRUPT:
+                terminal_write("INTERRUPT");
+                break;
+
+            case HINDSIGHT_KERNEL_ERROR:
+                terminal_write("KERNEL_ERROR");
+                break;
+
+            case HINDSIGHT_SYSTEM_CRASH:
+                terminal_write("SYSTEM_CRASH");
+                break;
+
+            default:
+                terminal_write("UNKNOWN");
+                break;
+        }
+
+        terminal_write(" - ");
+        terminal_write(event->description);
         terminal_write("\n");
     }
 
-    terminal_write("\n");
+    terminal_write("-----------------\n\n");
 }
