@@ -7,6 +7,9 @@
 #include "heap.h"
 #include "task.h"
 #include "scheduler.h"
+
+extern void page_fault_test_enable(void);
+
 #define INPUT_BUFFER_SIZE 128
 
 static char input_buffer[INPUT_BUFFER_SIZE];
@@ -63,6 +66,7 @@ terminal_write("  pagemaptest - Test dynamic virtual mapping\n");
 terminal_write("  pagingtest - Test virtual memory paging\n");
 terminal_write("  lifecycletest - Test task lifecycle and cleanup\n");
 terminal_write("  stresssched  - Stress test preemptive scheduler\n");
+terminal_write("  hindsighttest - Test Hindsight page fault capture\n");
     terminal_write("\nAvailable commands:\n");
     terminal_write("  help     - Show this help\n");
     terminal_write("  clear    - Clear the screen\n");
@@ -276,6 +280,21 @@ static void shell_paging_map_test(void)
 
     terminal_write("\nDYNAMIC PAGING TEST: PASS\n\n");
 }
+static void shell_hindsight_test(void)
+{
+    terminal_write("\nBlackForge Hindsight Page Fault Test\n");
+    terminal_write("------------------------------------\n");
+    terminal_write("Triggering controlled page fault...\n");
+
+    page_fault_test_enable();
+
+    volatile uint32_t* bad_address =
+        (volatile uint32_t*)0x03000000;
+
+    *bad_address = 0xBF2026AA;
+
+    terminal_write("ERROR: page fault did not occur.\n");
+}
 static void shell_timer_test(void)
 {
     terminal_write("\nBlackForge Timer Test\n");
@@ -388,6 +407,10 @@ static void shell_execute(void)
 else if (string_equals(input_buffer, "pagemaptest"))
 {
     shell_paging_map_test();
+}
+else if (string_equals(input_buffer, "hindsighttest"))
+{
+    shell_hindsight_test();
 }
     else if (string_equals(input_buffer, "clear"))
     {
