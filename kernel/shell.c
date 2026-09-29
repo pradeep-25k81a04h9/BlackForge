@@ -7,6 +7,8 @@
 #include "heap.h"
 #include "task.h"
 #include "scheduler.h"
+#include "../hindsight/history.h"
+#include "../hindsight/incident.h"
 #define INPUT_BUFFER_SIZE 128
 
 static char input_buffer[INPUT_BUFFER_SIZE];
@@ -49,6 +51,191 @@ static int string_starts_with(const char* text, const char* prefix)
 }
 
 
+
+static void shell_print_uint(uint32_t value)
+{
+    char buffer[12];
+    int position = 0;
+
+    if (value == 0)
+    {
+        terminal_putchar('0');
+        return;
+    }
+
+    while (value > 0)
+    {
+        buffer[position++] = '0' + (value % 10);
+        value /= 10;
+    }
+
+    while (position > 0)
+    {
+        terminal_putchar(buffer[--position]);
+    }
+}
+
+static void shell_print_hex(uint32_t value)
+{
+    const char* hex = "0123456789ABCDEF";
+
+    terminal_write("0x");
+
+    for (int shift = 28; shift >= 0; shift -= 4)
+    {
+        terminal_putchar(hex[(value >> shift) & 0xF]);
+    }
+}
+
+static const char* shell_event_name(uint32_t type)
+{
+    switch (type)
+    {
+        case HINDSIGHT_EVENT_HEAP_ALLOC:
+            return "HEAP_ALLOC";
+
+        case HINDSIGHT_EVENT_HEAP_FREE:
+            return "HEAP_FREE";
+
+        case HINDSIGHT_EVENT_FRAME_ALLOC:
+            return "FRAME_ALLOC";
+
+        case HINDSIGHT_EVENT_FRAME_FREE:
+            return "FRAME_FREE";
+
+        case HINDSIGHT_EVENT_TASK_CREATE:
+            return "TASK_CREATE";
+
+        case HINDSIGHT_EVENT_TASK_EXIT:
+            return "TASK_EXIT";
+
+        case HINDSIGHT_EVENT_TASK_SWITCH:
+            return "TASK_SWITCH";
+
+        case HINDSIGHT_EVENT_PAGE_FAULT:
+            return "PAGE_FAULT";
+
+        default:
+            return "UNKNOWN";
+    }
+}
+
+static void shell_history(void)
+{
+    uint32_t count = hindsight_history_count();
+
+    terminal_write("\nBlackForge Hindsight History\n");
+    terminal_write("----------------------------\n");
+    terminal_write("Recorded events: ");
+    shell_print_uint(count);
+    terminal_write("\n\n");
+
+    if (count == 0)
+    {
+        terminal_write("No Hindsight events recorded.\n\n");
+        return;
+    }
+
+    for (uint32_t i = 0; i < count; i++)
+    {
+        const hindsight_event_t* event =
+            hindsight_history_get(i);
+
+        if (event == 0)
+            continue;
+
+        terminal_write("[");
+        shell_print_uint(i);
+        terminal_write("] ");
+
+        terminal_write(shell_event_name(event->type));
+
+        terminal_write(" seq=");
+        shell_print_uint(event->sequence);
+
+        terminal_write(" pid=");
+        shell_print_uint(event->pid);
+
+        terminal_write(" addr=");
+        shell_print_hex(event->address);
+
+        terminal_write(" size=");
+        shell_print_uint(event->size);
+
+        terminal_write(" extra=");
+        shell_print_hex(event->extra);
+
+        terminal_write("\n");
+    }
+
+    terminal_write("\nHindsight history complete.\n\n");
+}
+static uint32_t shell_parse_uint(const char* text)
+{
+    uint32_t value = 0;
+
+    while (*text >= '0' && *text <= '9')
+    {
+        value = (value * 10) + (uint32_t)(*text - '0');
+        text++;
+    }
+
+    return value;
+}
+
+static int shell_has_pid_argument(const char* command)
+{
+    return string_starts_with(command, "incident ") &&
+           command[9] >= '0' &&
+           command[9] <= '9';
+}
+
+static void shell_incident(const char* command)
+{
+    uint32_t pid = shell_parse_uint(command + 9);
+    uint32_t count = hindsight_incident_count(pid);
+
+    terminal_write("\nBlackForge Hindsight Incident\n");
+    terminal_write("----------------------------\n");
+    terminal_write("PID: ");
+    shell_print_uint(pid);
+    terminal_write("\nEvents: ");
+    shell_print_uint(count);
+    terminal_write("\n\n");
+
+    if (count == 0)
+    {
+        terminal_write("No events found for this PID.\n\n");
+        return;
+    }
+
+    for (uint32_t i = 0; i < count; i++)
+    {
+        const hindsight_event_t* event =
+            hindsight_incident_get(pid, i);
+
+        if (event == 0)
+            continue;
+
+        terminal_write("[");
+        shell_print_uint(event->sequence);
+        terminal_write("] ");
+        terminal_write(shell_event_name(event->type));
+
+        terminal_write(" addr=");
+        shell_print_hex(event->address);
+
+        terminal_write(" size=");
+        shell_print_uint(event->size);
+
+        terminal_write(" extra=");
+        shell_print_hex(event->extra);
+
+        terminal_write("\n");
+    }
+
+    terminal_write("\nIncident reconstruction complete.\n\n");
+}
 static void shell_help(void)
 {
 terminal_write("  meminfo  - Show memory information\n");
@@ -68,7 +255,10 @@ terminal_write("  stresssched  - Stress test preemptive scheduler\n");
     terminal_write("  clear    - Clear the screen\n");
     terminal_write("  about    - About BlackForge OS\n");
     terminal_write("  version  - Show OS version\n");
-    terminal_write("  echo     - Print text\n\n");
+    terminal_write("  echo     - Print text\n");
+    terminal_write("  history  - Show Hindsight event history\n");
+    terminal_write("  incident <pid> - Show events for a task\n\n");
+    terminal_write("  faulttest - Trigger a page fault test\n");
 }
 
 
@@ -145,6 +335,26 @@ static void shell_frame_test(void)
         terminal_write("Allocation test   : FAIL\n");
         terminal_write("\nFRAME ALLOCATOR TEST: FAIL\n\n");
     }
+}
+static void shell_faulttest(void)
+{
+    terminal_write("\nBlackForge Page Fault Test\n");
+    terminal_write("-------------------------\n");
+    terminal_write("Triggering invalid memory access...\n\n");
+
+    volatile uint32_t* invalid =
+        (volatile uint32_t*)0xFFFFFFFF;
+
+    uint32_t value = *invalid;
+
+    /*
+     * This line should never execute.
+     * The page-fault handler should stop
+     * the CPU before reaching here.
+     */
+    (void)value;
+
+    terminal_write("ERROR: page fault did not occur.\n\n");
 }
 static void shell_paging_map_test(void)
 {
@@ -385,6 +595,22 @@ static void shell_execute(void)
     {
         shell_help();
     }
+    else if (string_equals(input_buffer, "history"))
+    {
+        shell_history();
+    }
+else if (string_equals(input_buffer, "faulttest"))
+{
+    shell_faulttest();
+}
+else if (shell_has_pid_argument(input_buffer))
+{
+    shell_incident(input_buffer);
+}
+else if (shell_has_pid_argument(input_buffer))
+{
+    shell_incident(input_buffer);
+}
 else if (string_equals(input_buffer, "pagemaptest"))
 {
     shell_paging_map_test();

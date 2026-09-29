@@ -6,57 +6,79 @@ echo "========================================"
 echo "        BLACKFORGE BUILD SYSTEM"
 echo "========================================"
 
-echo "[1/10] Building terminal..."
-gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
+echo "[1/16] Building terminal..."
+gcc -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables \
     -c kernel/terminal.c -o kernel/terminal.o
 
-echo "[2/10] Building keyboard..."
-gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
+echo "[2/16] Building keyboard..."
+gcc -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables \
     -c kernel/keyboard.c -o kernel/keyboard.o
 
-echo "[3/10] Building shell..."
-gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
+echo "[3/16] Building shell..."
+gcc -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables \
     -c kernel/shell.c -o kernel/shell.o
 
-echo "[4/10] Building kernel..."
-gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
+echo "[4/16] Building kernel..."
+gcc -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables \
     -c kernel/kernel.c -o kernel/kernel.o
 
-echo "[5/10] Building memory manager..."
-gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
+echo "[5/16] Building memory manager..."
+gcc -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables \
     -c kernel/memory.c -o kernel/memory.o
 
-echo "[6/10] Building frame allocator..."
-gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
+echo "[6/16] Building frame allocator..."
+gcc -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables \
     -c kernel/frame.c -o kernel/frame.o
-echo "[7/11] Building paging..."
-gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
+
+echo "[7/16] Building paging..."
+gcc -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables \
     -c kernel/paging.c -o kernel/paging.o
-echo "[8/12] Building kernel heap..."
-gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
+
+echo "[8/16] Building kernel heap..."
+gcc -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables \
     -c kernel/heap.c -o kernel/heap.o
-echo "[9/12] Building timer..."
+
+echo "[9/16] Building Hindsight event system..."
+gcc -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables \
+    -c hindsight/event.c -o hindsight/event.o
+
+echo "[10/16] Building Hindsight history..."
+gcc -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables \
+    -c hindsight/history.c -o hindsight/history.o
+
+echo "[11/16] Building Hindsight incident..."
 gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
+    -fno-asynchronous-unwind-tables \
+    -c hindsight/incident.c -o hindsight/incident.o
+
+echo "[12/16] Building timer..."
+gcc -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables \
     -c kernel/timer.c -o kernel/timer.o
-echo "[11/13] Building scheduler..."
-gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
+
+echo "[13/16] Building scheduler..."
+gcc -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables \
     -c kernel/scheduler.c -o kernel/scheduler.o
-echo "[12/14] Building context switcher..."
+
+echo "[14/16] Building context switcher..."
 nasm -f elf32 kernel/context.asm -o kernel/context.o
-echo "[10/13] Building task manager..."
-gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
+
+echo "[15/16] Building task manager..."
+gcc -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables \
     -fno-omit-frame-pointer \
     -c kernel/task.c -o kernel/task.o
-echo "[8/11] Building interrupts..."
-gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
+
+echo "[16/16] Building interrupts..."
+gcc -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables \
     -c kernel/interrupts.c -o kernel/interrupts_c.o
 
 nasm -f elf32 kernel/interrupts.asm -o kernel/interrupts.o
 
-echo "[9/11] Building kernel entry..."
+echo "Building kernel entry..."
 nasm -f elf32 kernel/entry.asm -o kernel/entry.o
 
-echo "[10/11] Linking kernel..."
+echo "========================================"
+echo "           LINKING KERNEL"
+echo "========================================"
 
 ld -m elf_i386 -T kernel/linker.ld \
     -o kernel/kernel.elf \
@@ -69,6 +91,9 @@ ld -m elf_i386 -T kernel/linker.ld \
     kernel/frame.o \
     kernel/paging.o \
     kernel/heap.o \
+    hindsight/event.o \
+    hindsight/history.o \
+    hindsight/incident.o \
     kernel/timer.o \
     kernel/scheduler.o \
     kernel/context.o \
@@ -89,7 +114,9 @@ if [ "$KERNEL_SECTORS" -gt 64 ]; then
     exit 1
 fi
 
-echo "[10/10] Building boot stages..."
+echo "========================================"
+echo "          BUILDING BOOT STAGES"
+echo "========================================"
 
 nasm -f bin boot/boot.asm -o boot/boot.bin
 
@@ -114,7 +141,9 @@ if [ "$STAGE2_SIZE" -ne 1536 ]; then
     exit 1
 fi
 
-echo "[10/10] Building disk image..."
+echo "========================================"
+echo "          BUILDING DISK IMAGE"
+echo "========================================"
 
 rm -f boot/blackforge.img
 

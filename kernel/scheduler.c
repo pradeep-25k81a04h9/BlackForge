@@ -1,5 +1,5 @@
 #include "scheduler.h"
-
+#include "../hindsight/event.h"
 
 static task_t* current_task = 0;
 
@@ -15,6 +15,7 @@ void scheduler_init(void)
     current_index = TASK_MAX - 1;
 }
 
+
 /*
  * Return the task currently selected
  * by the scheduler.
@@ -23,10 +24,14 @@ task_t* scheduler_get_current(void)
 {
     return current_task;
 }
+
+
 void scheduler_clear_current(void)
 {
     current_task = 0;
 }
+
+
 int scheduler_has_ready_tasks(void)
 {
     for (uint32_t i = 0; i < TASK_MAX; i++)
@@ -43,6 +48,8 @@ int scheduler_has_ready_tasks(void)
 
     return 0;
 }
+
+
 /*
  * Block the currently running task and
  * select another READY task.
@@ -84,6 +91,7 @@ int scheduler_wake_task(uint32_t pid)
     return 1;
 }
 
+
 /*
  * Select the next READY task using
  * round-robin scheduling.
@@ -111,6 +119,21 @@ task_t* scheduler_select_next(void)
             task->state == TASK_READY)
         {
             /*
+             * Save the previous task PID
+             * before changing current_task.
+             *
+             * PID 0 means there was no
+             * previous task.
+             */
+            uint32_t previous_pid = 0;
+
+            if (current_task != 0)
+            {
+                previous_pid =
+                    current_task->pid;
+            }
+
+            /*
              * Previous running task becomes
              * ready again.
              */
@@ -128,6 +151,26 @@ task_t* scheduler_select_next(void)
 
             current_task->state =
                 TASK_RUNNING;
+
+            /*
+             * Hindsight:
+             *
+             * pid   = new/current task
+             * extra = previous task PID
+             *
+             * This creates a timeline such as:
+             *
+             * TASK_SWITCH
+             * previous: 1
+             * current : 2
+             */
+            hindsight_event_record(
+                HINDSIGHT_EVENT_TASK_SWITCH,
+                current_task->pid,
+                0,
+                0,
+                previous_pid
+            );
 
             return current_task;
         }
@@ -284,20 +327,20 @@ int scheduler_test(void)
     }
 
 
-/*
- * Cleanup.
- *
- * The scheduler test deliberately leaves one task
- * selected as RUNNING. Clear the scheduler's current
- * task before destroying the temporary test tasks.
- */
-current_task = 0;
+    /*
+     * Cleanup.
+     *
+     * The scheduler test deliberately leaves one task
+     * selected as RUNNING. Clear the scheduler's current
+     * task before destroying the temporary test tasks.
+     */
+    current_task = 0;
 
-task_destroy((uint32_t)pid_a);
-task_destroy((uint32_t)pid_b);
-task_destroy((uint32_t)pid_c);
+    task_destroy((uint32_t)pid_a);
+    task_destroy((uint32_t)pid_b);
+    task_destroy((uint32_t)pid_c);
 
-current_index = 0;
+    current_index = 0;
 
     if (task_get_count() !=
         initial_count)
@@ -311,13 +354,13 @@ current_index = 0;
 
 fail:
 
-current_task = 0;
+    current_task = 0;
 
-task_destroy((uint32_t)pid_a);
-task_destroy((uint32_t)pid_b);
-task_destroy((uint32_t)pid_c);
+    task_destroy((uint32_t)pid_a);
+    task_destroy((uint32_t)pid_b);
+    task_destroy((uint32_t)pid_c);
 
-current_index = 0;
+    current_index = 0;
 
-return 0;
+    return 0;
 }

@@ -3,6 +3,7 @@
 #include "scheduler.h"
 #include "context.h"
 #include "terminal.h"
+#include "../hindsight/event.h"
 
 static task_t* task_table[TASK_MAX];
 static uint32_t next_pid = 1;
@@ -313,6 +314,18 @@ task->is_idle = 0;
     task_table[slot] = task;
     task_count++;
 
+    /*
+     * Hindsight:
+     * Record successful task creation using the real PID.
+     */
+    hindsight_event_record(
+        HINDSIGHT_EVENT_TASK_CREATE,
+        task->pid,
+        0,
+        0,
+        0
+    );
+
     return (int)task->pid;
 }
 
@@ -492,6 +505,19 @@ void task_finish(void)
      * freed here.
      */
     current->finished = 1;
+
+    /*
+     * Hindsight:
+     * Record that this task has terminated.
+     */
+    hindsight_event_record(
+        HINDSIGHT_EVENT_TASK_EXIT,
+        current->pid,
+        0,
+        0,
+        0
+    );
+
     current->state = TASK_TERMINATED;
 }
 void task_exit(void)
@@ -506,6 +532,18 @@ void task_exit(void)
             __asm__ volatile ("hlt");
         }
     }
+
+    /*
+     * Hindsight:
+     * Record that this task is exiting.
+     */
+    hindsight_event_record(
+        HINDSIGHT_EVENT_TASK_EXIT,
+        current->pid,
+        0,
+        0,
+        0
+    );
 
     /*
      * A terminated task must never be selected

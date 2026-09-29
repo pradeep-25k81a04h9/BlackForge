@@ -1,6 +1,7 @@
 #include "frame.h"
 #include "memory.h"
 #include "terminal.h"
+#include "../hindsight/event.h"
 
 #define BOOTINFO_ADDRESS 0x7000
 #define FRAME_BITMAP_ADDRESS 0x20000
@@ -169,7 +170,21 @@ uint32_t frame_allocate(void)
             free_frames--;
             used_frames++;
 
-            return frame * FRAME_SIZE;
+            uint32_t address = frame * FRAME_SIZE;
+
+            /*
+             * Hindsight:
+             * Record every physical frame allocation.
+             */
+            hindsight_event_record(
+                HINDSIGHT_EVENT_FRAME_ALLOC,
+                0,
+                address,
+                FRAME_SIZE,
+                0
+            );
+
+            return address;
         }
     }
 
@@ -196,6 +211,18 @@ void frame_free(uint32_t address)
 
         free_frames++;
         used_frames--;
+
+        /*
+         * Hindsight:
+         * Record every physical frame release.
+         */
+        hindsight_event_record(
+            HINDSIGHT_EVENT_FRAME_FREE,
+            0,
+            address,
+            FRAME_SIZE,
+            0
+        );
     }
 }
 
@@ -213,6 +240,7 @@ uint32_t frame_get_used(void)
 {
     return used_frames;
 }
+
 int frame_test(void)
 {
     uint32_t initial_free = frame_get_free();
@@ -268,6 +296,7 @@ int frame_test(void)
 
     return 1;
 }
+
 void frame_reserve_range(uint32_t start, uint32_t end)
 {
     if (end <= start)
@@ -299,4 +328,3 @@ void frame_reserve_range(uint32_t start, uint32_t end)
         }
     }
 }
-

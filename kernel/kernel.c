@@ -6,6 +6,8 @@
 #include "shell.h"
 #include "task.h"
 #include "scheduler.h"
+#include "../hindsight/event.h"
+
 extern void interrupts_init(void);
 extern void interrupts_enable(void);
 extern uint32_t timer_get_ticks(void);
@@ -23,24 +25,71 @@ void kernel_main(void)
     terminal_write("Keyboard      : ONLINE\n");
     terminal_write("Interrupts    : INITIALIZING...\n\n");
 
+    /*
+     * Initialize Hindsight before any
+     * instrumented kernel subsystem starts.
+     */
+    hindsight_event_init();
+
+    /*
+     * Initialize interrupt infrastructure.
+     *
+     * interrupts_init() does NOT enable
+     * hardware interrupts yet.
+     */
     interrupts_init();
 
     terminal_write("Interrupts    : ONLINE\n");
 
-    memory_init();
-    terminal_write("Memory        : ONLINE\n");
-    terminal_write("Frames        : INITIALIZING...\n\n");
-    frame_init();
-    terminal_write("Frames        : ONLINE\n\n");
-    paging_init();
-    heap_init();
-    task_init();
-    scheduler_init();
     /*
- * All core kernel subsystems are now initialized.
- * Hardware interrupts can safely begin.
- */
-interrupts_enable();
+     * Initialize physical memory information.
+     */
+    memory_init();
+
+    terminal_write("Memory        : ONLINE\n");
+
+    /*
+     * Initialize the physical frame allocator.
+     *
+     * Hindsight is already active here, so
+     * frame allocation events can be recorded.
+     */
+    terminal_write("Frames        : INITIALIZING...\n\n");
+
+    frame_init();
+
+    terminal_write("Frames        : ONLINE\n\n");
+
+    /*
+     * Initialize paging.
+     */
+    paging_init();
+
+    /*
+     * Initialize the kernel heap.
+     *
+     * Hindsight is already active, so heap
+     * allocation/free events can be recorded.
+     */
+    heap_init();
+
+    /*
+     * Initialize task management.
+     */
+    task_init();
+
+    /*
+     * Initialize the scheduler.
+     */
+    scheduler_init();
+
+    /*
+     * All core kernel subsystems are now
+     * initialized.
+     *
+     * Hardware interrupts can safely begin.
+     */
+    interrupts_enable();
 
     terminal_write("BlackForge Shell\n");
     terminal_write("----------------\n");
@@ -48,10 +97,10 @@ interrupts_enable();
 
     terminal_write("blackforge> ");
 
-while (1)
-{
-    __asm__ volatile ("hlt");
+    while (1)
+    {
+        __asm__ volatile ("hlt");
 
-    shell_process_pending();
-}
+        shell_process_pending();
+    }
 }

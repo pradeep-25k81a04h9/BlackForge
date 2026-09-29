@@ -2,6 +2,7 @@
 #include "paging.h"
 #include "frame.h"
 #include "terminal.h"
+#include "../hindsight/event.h"
 
 #define HEAP_PAGE_SIZE 4096
 
@@ -507,10 +508,27 @@ void* kmalloc(uint32_t size)
 
         block->used = 1;
 
-        return (void*)(
-            (uint8_t*)block +
-            sizeof(struct heap_block)
+        void* address =
+            (void*)(
+                (uint8_t*)block +
+                sizeof(struct heap_block)
+            );
+
+        /*
+         * Record successful heap allocation.
+         *
+         * PID is currently 0 because heap.c does not
+         * have a dependency on the task subsystem yet.
+         */
+        hindsight_event_record(
+            HINDSIGHT_EVENT_HEAP_ALLOC,
+            0,
+            (uint32_t)address,
+            size,
+            0
         );
+
+        return address;
     }
 
 
@@ -612,10 +630,24 @@ void* kmalloc(uint32_t size)
 
     used_pages += page_count;
 
-    return (void*)(
-        (uint8_t*)block +
-        sizeof(struct heap_block)
+    void* address =
+        (void*)(
+            (uint8_t*)block +
+            sizeof(struct heap_block)
+        );
+
+    /*
+     * Record successful large heap allocation.
+     */
+    hindsight_event_record(
+        HINDSIGHT_EVENT_HEAP_ALLOC,
+        0,
+        (uint32_t)address,
+        size,
+        page_count
     );
+
+    return address;
 }
 
 
@@ -706,6 +738,19 @@ void kfree(void* address)
                 return;
             }
 
+            /*
+             * Record before unmapping because the
+             * allocation address is still valid
+             * for the event record.
+             */
+            hindsight_event_record(
+                HINDSIGHT_EVENT_HEAP_FREE,
+                0,
+                virtual_address,
+                size,
+                page_count
+            );
+
             block->used = 0;
 
             for (uint32_t i = 0;
@@ -760,6 +805,20 @@ void kfree(void* address)
         if (block->used &&
             block->size <= SMALL_ALLOCATION_LIMIT)
         {
+            uint32_t size =
+                block->size;
+
+            /*
+             * Record before modifying the block.
+             */
+            hindsight_event_record(
+                HINDSIGHT_EVENT_HEAP_FREE,
+                0,
+                virtual_address,
+                size,
+                0
+            );
+
             block->used = 0;
 
             merge_free_blocks(page);
