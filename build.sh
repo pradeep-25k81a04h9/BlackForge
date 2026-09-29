@@ -10,6 +10,9 @@ echo "[1/10] Building terminal..."
 gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
     -c kernel/terminal.c -o kernel/terminal.o
 
+gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
+    -c kernel/storage/storage.c -o kernel/storage/storage.o
+
 echo "[2/10] Building keyboard..."
 gcc -m32 -ffreestanding -fno-pie -fno-stack-protector \
     -c kernel/keyboard.c -o kernel/keyboard.o
@@ -85,6 +88,7 @@ ld -m elf_i386 -T kernel/linker.ld \
     kernel/task.o \
     kernel/interrupts_c.o \
     kernel/interrupts.o \
+    kernel/storage/storage.o \
     hindsight/event.o \
     hindsight/history.o \
     hindsight/incident.o 
