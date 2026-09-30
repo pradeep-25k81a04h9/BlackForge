@@ -23,3 +23,9 @@ Thumbs.dbo
 #Backups
 boot_backup/
 kernel_backup/
+
+# Local BlackForge backups and test artifacts
+boot/stage2.asm.backup
+build_backup.sh
+storage-test.img
+tatus
