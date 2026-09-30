@@ -1,5 +1,5 @@
 #include "scheduler.h"
-
+#include "../hindsight/event.h"
 
 static task_t* current_task = 0;
 
@@ -122,13 +122,21 @@ task_t* scheduler_select_next(void)
                     TASK_READY;
             }
 
-            current_task = task;
+current_task = task;
 
-            current_index = index;
+current_index = index;
 
-            current_task->state =
-                TASK_RUNNING;
+current_task->state =
+    TASK_RUNNING;
 
+hindsight_record_event(
+    HINDSIGHT_INTERRUPT,
+    HINDSIGHT_INFO,
+    (int)current_task->pid,
+    0,
+    0,
+    "Task switch"
+);
             return current_task;
         }
     }

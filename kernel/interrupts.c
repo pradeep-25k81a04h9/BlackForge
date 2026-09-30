@@ -1,5 +1,8 @@
 #include <stdint.h>
 #include "timer.h"
+#include "terminal.h"
+#include "../hindsight/event.h"
+#include "../hindsight/incident.h"
 
 struct idt_entry
 {
@@ -21,6 +24,53 @@ static struct idt_ptr idtp;
 
 extern void irq0_stub(void);
 extern void irq1_stub(void);
+extern void page_fault_stub(void);
+
+static volatile int page_fault_test_mode = 0;
+
+void page_fault_test_enable(void)
+{
+    page_fault_test_mode = 1;
+}
+
+void page_fault_handler(uint32_t error_code)
+{
+    uint32_t fault_address;
+
+    __asm__ volatile (
+        "mov %%cr2, %0"
+        : "=r"(fault_address)
+    );
+
+    hindsight_record_event(
+        HINDSIGHT_PAGE_FAULT,
+        HINDSIGHT_ERROR,
+        -1,
+        fault_address,
+        error_code,
+        "Page fault"
+    );
+
+if (page_fault_test_mode)
+{
+    HindsightIncident incident;
+
+    terminal_write("\nHINDSIGHT: PAGE FAULT CAPTURED\n");
+
+    if (hindsight_incident_find_latest(&incident))
+    {
+        hindsight_incident_print(&incident);
+        hindsight_incident_print_context(&incident, 5);
+    }
+
+    terminal_write("BlackForge halted safely.\n");
+
+    while (1)
+    {
+        __asm__ volatile ("cli; hlt");
+    }
+}
+}
 
 static void outb(uint16_t port, uint8_t value)
 {
@@ -122,6 +172,14 @@ void interrupts_init(void)
     idt_set_gate(
         0x20,
         (uint32_t)irq0_stub
+    );
+
+    /*
+     * CPU Page Fault -> interrupt vector 14.
+     */
+    idt_set_gate(
+        0x0E,
+        (uint32_t)page_fault_stub
     );
 
     /*

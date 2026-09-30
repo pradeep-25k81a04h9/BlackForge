@@ -2,9 +2,11 @@ bits 32
 
 global irq0_stub
 global irq1_stub
+global page_fault_stub
 
 extern timer_interrupt_handler
 extern keyboard_interrupt_handler
+extern page_fault_handler
 
 section .text
 
@@ -60,4 +62,44 @@ irq1_stub:
 
     popa
 
+    iretd
+; ------------------------------------------------
+; Page Fault - CPU Exception 14
+; ------------------------------------------------
+
+page_fault_stub:
+
+    ; Save all general-purpose registers.
+    pusha
+
+    ; After PUSHA:
+    ;
+    ; ESP -> EDI
+    ;        ESI
+    ;        EBP
+    ;        ESP (original)
+    ;        EBX
+    ;        EDX
+    ;        ECX
+    ;        EAX
+    ;        error code
+    ;        EIP
+    ;        CS
+    ;        EFLAGS
+    ;
+    ; Pass the page-fault error code to C.
+    mov eax, [esp + 32]
+    push eax
+
+    call page_fault_handler
+
+    add esp, 4
+
+    ; Restore registers.
+    popa
+
+    ; Remove the CPU-pushed page-fault error code.
+    add esp, 4
+
+    ; Return from exception.
     iretd

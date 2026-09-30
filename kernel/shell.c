@@ -7,6 +7,12 @@
 #include "heap.h"
 #include "task.h"
 #include "scheduler.h"
+#include "../hindsight/history.h"
+#include "../hindsight/event.h"
+#include "../hindsight/incident.h"
+
+extern void page_fault_test_enable(void);
+
 #define INPUT_BUFFER_SIZE 128
 
 static char input_buffer[INPUT_BUFFER_SIZE];
@@ -63,6 +69,9 @@ terminal_write("  pagemaptest - Test dynamic virtual mapping\n");
 terminal_write("  pagingtest - Test virtual memory paging\n");
 terminal_write("  lifecycletest - Test task lifecycle and cleanup\n");
 terminal_write("  stresssched  - Stress test preemptive scheduler\n");
+terminal_write("  hindsighttest - Test Hindsight page fault capture\n");
+terminal_write("  hindsightevent - Create a Hindsight test event\n");
+terminal_write("  incident - Analyze the latest Hindsight incident\n");
     terminal_write("\nAvailable commands:\n");
     terminal_write("  help     - Show this help\n");
     terminal_write("  clear    - Clear the screen\n");
@@ -276,6 +285,216 @@ static void shell_paging_map_test(void)
 
     terminal_write("\nDYNAMIC PAGING TEST: PASS\n\n");
 }
+static void shell_hindsight_test(void)
+{
+    terminal_write("\nBlackForge Hindsight Page Fault Test\n");
+    terminal_write("------------------------------------\n");
+    terminal_write("Triggering controlled page fault...\n");
+
+    page_fault_test_enable();
+
+    volatile uint32_t* bad_address =
+        (volatile uint32_t*)0x03000000;
+
+    *bad_address = 0xBF2026AA;
+
+    terminal_write("ERROR: page fault did not occur.\n");
+}
+static void shell_hindsight_event_test(void)
+{
+    terminal_write("\nCreating Hindsight test event...\n");
+
+hindsight_record_event(
+    HINDSIGHT_KERNEL_ERROR,
+    HINDSIGHT_ERROR,
+    -1,
+    0xDEADBEEF,
+    0,
+    "Hindsight test event"
+);
+    terminal_write("Hindsight event recorded successfully.\n");
+}
+static void shell_hindsight_wrap_test(void)
+{
+    unsigned int i;
+    unsigned int count;
+
+    terminal_write("\nHindsight History Wrap Test\n");
+    terminal_write("---------------------------\n");
+
+    for (i = 0; i < 140; i++)
+    {
+        hindsight_record_event(
+            HINDSIGHT_KERNEL_ERROR,
+            HINDSIGHT_INFO,
+            -1,
+            i,
+            i,
+            "Wrap test event"
+        );
+    }
+
+    count = hindsight_history_count();
+
+    terminal_write("Events recorded : 140\n");
+    terminal_write("History count   : ");
+
+if (count == 128)
+{
+    const HindsightEvent *oldest =
+        hindsight_history_get(0);
+
+    const HindsightEvent *newest =
+        hindsight_history_get(127);
+
+    if (oldest != 0 &&
+        newest != 0 &&
+        oldest->value == 12 &&
+        newest->value == 139)
+    {
+        terminal_write("Oldest event : 12\n");
+        terminal_write("Newest event : 139\n");
+        terminal_write("\nHINDSIGHT WRAP TEST: PASS\n\n");
+    }
+    else
+    {
+        terminal_write("Event order   : FAIL\n");
+        terminal_write("\nHINDSIGHT WRAP TEST: FAIL\n\n");
+    }
+}
+else
+{
+    terminal_write("\nHINDSIGHT WRAP TEST: FAIL\n\n");
+}
+    if (count == 128)
+        terminal_write("\nHINDSIGHT WRAP TEST: PASS\n\n");
+    else
+        terminal_write("\nHINDSIGHT WRAP TEST: FAIL\n\n");
+}
+static void shell_hindsight_history(void)
+{
+    unsigned int count;
+    unsigned int i;
+
+    terminal_write("\nHINDSIGHT EVENT HISTORY\n");
+    terminal_write("=======================\n");
+
+    count = hindsight_history_count();
+
+    if (count == 0)
+    {
+        terminal_write("No Hindsight events recorded.\n\n");
+        return;
+    }
+
+    for (i = 0; i < count; i++)
+    {
+        const HindsightEvent *event =
+            hindsight_history_get(i);
+
+        if (event == 0)
+            continue;
+
+        terminal_write("\nEvent #");
+        terminal_putchar('0' + (i % 10));
+        terminal_write("\n");
+
+        terminal_write("Type      : ");
+
+        switch (event->type)
+        {
+            case HINDSIGHT_PROCESS_START:
+                terminal_write("PROCESS_START");
+                break;
+
+            case HINDSIGHT_PROCESS_EXIT:
+                terminal_write("PROCESS_EXIT");
+                break;
+
+            case HINDSIGHT_MEMORY_ALLOC:
+                terminal_write("MEMORY_ALLOC");
+                break;
+
+            case HINDSIGHT_MEMORY_FREE:
+                terminal_write("MEMORY_FREE");
+                break;
+
+            case HINDSIGHT_PAGE_FAULT:
+                terminal_write("PAGE_FAULT");
+                break;
+
+            case HINDSIGHT_INTERRUPT:
+                terminal_write("INTERRUPT");
+                break;
+
+            case HINDSIGHT_KERNEL_ERROR:
+                terminal_write("KERNEL_ERROR");
+                break;
+
+            case HINDSIGHT_SYSTEM_CRASH:
+                terminal_write("SYSTEM_CRASH");
+                break;
+
+            default:
+                terminal_write("UNKNOWN");
+                break;
+        }
+
+        terminal_write("\nSeverity  : ");
+
+        switch (event->severity)
+        {
+            case HINDSIGHT_INFO:
+                terminal_write("INFO");
+                break;
+
+            case HINDSIGHT_WARNING:
+                terminal_write("WARNING");
+                break;
+
+            case HINDSIGHT_ERROR:
+                terminal_write("ERROR");
+                break;
+
+            case HINDSIGHT_CRITICAL:
+                terminal_write("CRITICAL");
+                break;
+
+            default:
+                terminal_write("UNKNOWN");
+                break;
+        }
+
+        terminal_write("\nAddress   : 0x");
+
+        terminal_putchar("0123456789ABCDEF"[(event->address >> 28) & 0xF]);
+        terminal_putchar("0123456789ABCDEF"[(event->address >> 24) & 0xF]);
+        terminal_putchar("0123456789ABCDEF"[(event->address >> 20) & 0xF]);
+        terminal_putchar("0123456789ABCDEF"[(event->address >> 16) & 0xF]);
+        terminal_putchar("0123456789ABCDEF"[(event->address >> 12) & 0xF]);
+        terminal_putchar("0123456789ABCDEF"[(event->address >> 8) & 0xF]);
+        terminal_putchar("0123456789ABCDEF"[(event->address >> 4) & 0xF]);
+        terminal_putchar("0123456789ABCDEF"[event->address & 0xF]);
+
+        terminal_write("\nProcess   : ");
+
+        if (event->process_id < 0)
+        {
+            terminal_write("UNKNOWN");
+        }
+        else
+        {
+            terminal_putchar('0' + event->process_id);
+        }
+
+        terminal_write("\nDescription: ");
+        terminal_write(event->description);
+
+        terminal_write("\n-----------------------\n");
+    }
+
+    terminal_write("\n");
+}
 static void shell_timer_test(void)
 {
     terminal_write("\nBlackForge Timer Test\n");
@@ -389,6 +608,44 @@ else if (string_equals(input_buffer, "pagemaptest"))
 {
     shell_paging_map_test();
 }
+else if (string_equals(input_buffer, "hindsighttest"))
+{
+    shell_hindsight_test();
+}
+else if (string_equals(input_buffer, "hindsightevent"))
+{
+    shell_hindsight_event_test();
+}
+else if (string_equals(input_buffer, "hindsightwraptest"))
+{
+    shell_hindsight_wrap_test();
+}
+else if (string_equals(input_buffer, "hindsight"))
+{
+    shell_hindsight_history();
+}
+else if (string_equals(input_buffer, "incident"))
+{
+    HindsightIncident incident;
+
+if (hindsight_incident_find_latest(&incident))
+{
+    hindsight_incident_print(&incident);
+    hindsight_incident_print_context(&incident, 5);
+}
+else
+{
+    hindsight_incident_print(&incident);
+}
+}
+else if (string_equals(input_buffer, "hindsightevent"))
+{
+    shell_hindsight_event_test();
+}
+else if (string_equals(input_buffer, "hindsight"))
+{
+    shell_hindsight_history();
+}
     else if (string_equals(input_buffer, "clear"))
     {
         terminal_clear();
@@ -403,7 +660,7 @@ else if (string_equals(input_buffer, "pagemaptest"))
     }
 else if (string_equals(input_buffer, "schedtest"))
 {
-    terminal_write("\nBlackForge Scheduler Test\n");
+terminal_write("\nBlackForge Scheduler Test\n");
     terminal_write("-------------------------\n");
 
     if (scheduler_test())
@@ -606,7 +863,6 @@ void shell_enter(void)
 {
     command_pending = 1;
 }
-
 
 void shell_process_pending(void)
 {
