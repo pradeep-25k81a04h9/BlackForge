@@ -17,4 +17,5 @@ int storage_write_sector(
     const uint8_t *buffer
 );
 
+int storage_is_available(void);
 #endif

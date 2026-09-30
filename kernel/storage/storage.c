@@ -1,5 +1,5 @@
 #include "storage.h"
-
+static int storage_available = 0;
 #define ATA_PRIMARY_IO       0x1F0
 #define ATA_PRIMARY_CONTROL  0x3F6
 #define ATA_CMD_CACHE_FLUSH  0xE7
@@ -119,25 +119,25 @@ static int ata_wait_drq(void)
 
 int storage_init(void)
 {
-    /*
-     * Select the primary master ATA device.
-     */
-    outb(
-        ATA_PRIMARY_IO + ATA_REG_HDDEVSEL,
-        0xA0
-    );
+    storage_available = 0;
 
-    /*
-     * Give the controller a little time.
-     */
+    outb(ATA_PRIMARY_IO + ATA_REG_HDDEVSEL, 0xA0);
+
     inb(ATA_PRIMARY_IO + ATA_REG_STATUS);
     inb(ATA_PRIMARY_IO + ATA_REG_STATUS);
     inb(ATA_PRIMARY_IO + ATA_REG_STATUS);
     inb(ATA_PRIMARY_IO + ATA_REG_STATUS);
 
-    return ata_wait_ready();
+    if (ata_wait_ready() != 0)
+        return -1;
+
+    storage_available = 1;
+    return 0;
 }
-
+int storage_is_available(void)
+{
+    return storage_available;
+}
 int storage_read_sector(
     uint32_t lba,
     uint8_t *buffer

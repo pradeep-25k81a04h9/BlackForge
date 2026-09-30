@@ -13,4 +13,10 @@ const HindsightEvent *hindsight_history_get(unsigned int index);
 
 unsigned int hindsight_history_count(void);
 
+int hindsight_history_load(void);
+
+int hindsight_history_save(void);
+
+unsigned long hindsight_history_last_timestamp(void);
+
 #endif

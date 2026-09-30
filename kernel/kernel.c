@@ -1,3 +1,4 @@
+#include "../hindsight/event.h"
 #include "../hindsight/history.h"
 #include "terminal.h"
 #include "memory.h"
@@ -7,6 +8,7 @@
 #include "shell.h"
 #include "task.h"
 #include "scheduler.h"
+#include "storage/storage.h"
 extern void interrupts_init(void);
 extern void interrupts_enable(void);
 extern uint32_t timer_get_ticks(void);
@@ -38,7 +40,16 @@ void kernel_main(void)
     task_init();
     scheduler_init();
   
+storage_init();
+
 hindsight_history_init();
+
+if (hindsight_history_load() == 0)
+{
+    hindsight_set_timestamp(
+        hindsight_history_last_timestamp()
+    );
+}
   /*
  * All core kernel subsystems are now initialized.
  * Hardware interrupts can safely begin.

@@ -39,5 +39,6 @@ void hindsight_record_event(
     unsigned long value,
     const char *description
 );
+void hindsight_set_timestamp(unsigned long timestamp);
 
 #endif

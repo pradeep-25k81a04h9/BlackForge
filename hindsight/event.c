@@ -32,5 +32,15 @@ void hindsight_record_event(
 
     event.description[i] = '\0';
 
-    hindsight_history_add(&event);
+hindsight_history_add(&event);
+
+if (severity == HINDSIGHT_ERROR ||
+    severity == HINDSIGHT_CRITICAL)
+{
+    hindsight_history_save();
+}
+}
+void hindsight_set_timestamp(unsigned long timestamp)
+{
+    hindsight_timestamp = timestamp;
 }
